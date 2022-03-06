@@ -364,12 +364,15 @@ static int stringToPSM(const std::string arg) {
 }
 
 // NOTE: arg_i is used here to avoid ugly *i so many times in this function
-static bool ParseArgs(int argc, char **argv, const char **lang, const char **image,
-                      const char **outputbase, const char **datapath, l_int32 *dpi,
-                      bool *list_langs, bool *print_parameters, bool *print_fonts_table,
-                      std::vector<std::string> *vars_vec, std::vector<std::string> *vars_values,
-                      l_int32 *arg_i, tesseract::PageSegMode *pagesegmode,
-                      tesseract::OcrEngineMode *enginemode) {
+ static bool ParseArgs(int argc, char **argv, const char **lang, const char **image,
+		const char **outputbase, const char **datapath,
+		const char **visible_image_file,
+		l_int32 *dpi, bool *list_langs,
+		bool *print_parameters, bool *print_fonts_table,
+		std::vector<std::string> *vars_vec,
+		std::vector<std::string> *vars_values, l_int32 *arg_i,
+		tesseract::PageSegMode *pagesegmode,
+		tesseract::OcrEngineMode *enginemode) {
   bool noocr = false;
   int i;
   for (i = 1; i < argc && (*outputbase == nullptr || argv[i][0] == '-'); i++) {
@@ -469,6 +472,9 @@ static bool ParseArgs(int argc, char **argv, const char **lang, const char **ima
       const std::string value = argument.substr(equal_pos + 1);
       vars_vec->push_back(key);
       vars_values->push_back(value);
+      ++i;
+    } else if (strcmp(argv[i], "--visible-pdf-image") == 0 && i + 1 < argc) {
+      *visible_image_file = argv[i + 1];
       ++i;
     } else if (*image == nullptr) {
       *image = argv[i];
@@ -660,6 +666,7 @@ static int main1(int argc, char **argv) {
 #endif
   const char *lang = nullptr;
   const char *image = nullptr;
+  const char *visible_image_file = nullptr;
   const char *outputbase = nullptr;
   const char *datapath = nullptr;
   bool list_langs = false;
@@ -690,9 +697,10 @@ static int main1(int argc, char **argv) {
   TIFFSetWarningHandler(Win32WarningHandler);
 #endif // HAVE_TIFFIO_H && _WIN32
 
-  if (!ParseArgs(argc, argv, &lang, &image, &outputbase, &datapath, &dpi, &list_langs,
-                 &print_parameters, &print_fonts_table, &vars_vec, &vars_values, &arg_i,
-                 &pagesegmode, &enginemode)) {
+  if (!ParseArgs(argc, argv, &lang, &image, &outputbase, &datapath,
+			&visible_image_file, &dpi, &list_langs,
+			&print_parameters, &print_fonts_table, &vars_vec,
+			&vars_values, &arg_i, &pagesegmode, &enginemode)) {
     return EXIT_FAILURE;
   }
 
@@ -751,6 +759,9 @@ static int main1(int argc, char **argv) {
 #endif  // ndef DISABLED_LEGACY_ENGINE
 
   FixPageSegMode(api, pagesegmode);
+
+  if (visible_image_file)
+    api.SetVisibleImageFilename(visible_image_file);
 
   if (dpi) {
     auto dpi_string = std::to_string(dpi);
